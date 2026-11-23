@@ -201,6 +201,15 @@ unsigned Modifiers() {
 
 LRESULT CALLBACK LowLevelMouseProc(int code, WPARAM wp, LPARAM lp) {
     if (code == HC_ACTION) {
+        const MSLLHOOKSTRUCT* ms = reinterpret_cast<const MSLLHOOKSTRUCT*>(lp);
+        if (wp == WM_XBUTTONDOWN) {
+            WORD xbutton = HIWORD(ms->mouseData);
+            if (xbutton == XBUTTON1) {
+                PostMessageW(g_target, WM_CRONQ_HOTKEY, (WPARAM)Id::GhostWrite, 0);
+            } else if (xbutton == XBUTTON2) {
+                PostMessageW(g_target, WM_CRONQ_HOTKEY, (WPARAM)Id::Toggle, 0);
+            }
+        }
         if (wp == WM_LBUTTONDOWN || wp == WM_RBUTTONDOWN || wp == WM_MBUTTONDOWN) {
             const MSLLHOOKSTRUCT* ms = reinterpret_cast<const MSLLHOOKSTRUCT*>(lp);
             LONG l = InterlockedCompareExchange(&g_rectLeft, 0, 0);

@@ -77,7 +77,7 @@ void OnMessage(const std::string& text) {
         for (const auto& msg : queued) PostToUi(msg);
         PushState();
         const auto timing = ghost::GetTiming();
-        PostToUi("{\"type\":\"ghost-settings\",\"human\":" + std::string(timing.human ? "true" : "false") +
+        PostToUi("{\"type\":\"ghost-settings\",\"engine\":" + std::to_string(static_cast<int>(timing.engine)) + ",\"human\":" + std::string(timing.human ? "true" : "false") +
                  ",\"safe\":" + (timing.safe ? "true" : "false") +
                  ",\"speed\":" + std::to_string(timing.speed) + "}");
         app::SetTestEntryText(app::TestEntryText(), true);
@@ -118,7 +118,9 @@ void OnMessage(const std::string& text) {
         int speed = 0;
         Number(m, "speed", &speed);
         bool safe = (m.find("safe") != m.end() && m.at("safe") == "true");
-        ghost::OnGhostSettings(human, speed, safe);
+        int engine = 0;
+        Number(m, "engine", &engine);
+        ghost::OnGhostSettings(human, speed, safe, engine);
     } else if (type == "focus") {
         auto it = m.find("where");
         browser::SetUrlInputFocused(it != m.end() && it->second == "url");

@@ -36,11 +36,19 @@ Timing DefaultTiming() {
     t.human = true;
     t.speed = 0;
     t.safe = false;
+    t.engine = InsertionEngine::GhostWriter;
     return ValidateTiming(t);
 }
 
 Timing ValidateTiming(Timing t) {
     if (t.speed < 0 || t.speed > 2) t.speed = 0;
+    int engVal = static_cast<int>(t.engine);
+    if (engVal < 0 || engVal > 3) t.engine = InsertionEngine::GhostWriter;
+    if (t.engine == InsertionEngine::ForcePasteInstant) {
+        t.human = false;
+    } else if (t.engine == InsertionEngine::ForcePasteHuman) {
+        t.human = true;
+    }
     int m = SpeedDelayMs(t.speed, t.human);
     t.letterMinMs = std::max(10, m / 2);
     t.letterMaxMs = std::max(10, m * 2);

@@ -8,10 +8,18 @@
 namespace cronq {
 namespace ghost_logic {
 
+enum class InsertionEngine {
+    GhostWriter = 0,      // Paced human simulation with natural dwell/rest intervals
+    ForcePasteInstant = 1,// Fast non-stop plain-text injection (16-char batches)
+    ForcePasteHuman = 2,  // ForcePaste human simulation (cadence without layout remapping)
+    GodPaste = 3          // Retained in-memory buffer injection (bypasses clipboard)
+};
+
 struct Timing {
     bool human = true;
     int speed = 0;  // 0: Slow (300ms), 1: Moderate (115ms), 2: Fast (85ms)
     bool safe = false;
+    InsertionEngine engine = InsertionEngine::GhostWriter;
     int letterMinMs = 10;
     int letterMaxMs = 600;
     int linesMin = 3;

@@ -110,6 +110,8 @@
       $('human').checked = m.human;
       $('safe').checked = m.safe;
       $('human-options').hidden = !m.human;
+      const eng = (m.engine !== undefined) ? Number(m.engine) : 0;
+      for (const b of document.querySelectorAll('.engine-btn')) b.setAttribute('aria-checked', String(Number(b.dataset.engine) === eng));
       for (const b of document.querySelectorAll('[data-speed]')) b.setAttribute('aria-checked',String(Number(b.dataset.speed)===m.speed));
     } else if (m.type === 'set-text') {
       $('editor').value = m.value || '';
@@ -152,7 +154,14 @@
   $('editor').addEventListener('input', onEditorInput);
 
   function sendGhostSettings() {
-    const human = $('human').checked;
+    let engine = 0;
+    for (const b of document.querySelectorAll('.engine-btn')) {
+      if (b.getAttribute('aria-checked') === 'true') {
+        engine = Number(b.dataset.engine);
+        break;
+      }
+    }
+    const human = (engine === 1) ? false : $('human').checked;
     const safe = $('safe').checked;
     let speed = 0;
     for (const b of document.querySelectorAll('[data-speed]')) {
@@ -161,7 +170,21 @@
         break;
       }
     }
-    post('ghost-settings', {human, speed, safe});
+    post('ghost-settings', {human, speed, safe, engine});
+  }
+  for (const b of document.querySelectorAll('.engine-btn')) {
+    b.addEventListener('click', () => {
+      for (const btn of document.querySelectorAll('.engine-btn')) btn.setAttribute('aria-checked', String(btn === b));
+      const eng = Number(b.dataset.engine);
+      if (eng === 1) { // ForcePaste Instant
+        $('human').checked = false;
+        $('human-options').hidden = true;
+      } else if (eng === 0 || eng === 2) {
+        $('human').checked = true;
+        $('human-options').hidden = false;
+      }
+      sendGhostSettings();
+    });
   }
   $('human').addEventListener('change', () => {
     $('human-options').hidden = !$('human').checked;

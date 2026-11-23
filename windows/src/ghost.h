@@ -23,7 +23,7 @@ void SetTiming(ghost_logic::Timing t);
 // UI integration
 void OnGhostStartRequested();
 void OnGhostText(const std::string& text);
-void OnGhostSettings(bool human, int speed, bool safe);
+void OnGhostSettings(bool human, int speed, bool safe, int engine = 0);
 
 // Timers
 constexpr UINT_PTR kGhostCountdownTimerId = 1004;

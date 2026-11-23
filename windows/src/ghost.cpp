@@ -186,16 +186,25 @@ void Cleanup() {
 bool IsTyping() { return g_isTyping; }
 
 void OnForegroundChanged(HWND hwnd) {
-    if (g_isTyping && g_run && hwnd != g_run->targetWindow) {
-        Cancel();
-        overlay::ShowToast(ghost_logic::kToastFocusChanged);
+    if (g_isTyping && g_run) {
+        bool focusOk = (hwnd == g_run->targetWindow ||
+                        (hwnd && g_run->targetWindow && (GetAncestor(hwnd, GA_ROOT) == GetAncestor(g_run->targetWindow, GA_ROOT) || IsChild(g_run->targetWindow, hwnd))));
+        if (!focusOk) {
+            Cancel();
+            overlay::ShowToast(ghost_logic::kToastFocusChanged);
+        }
     }
 }
 
 void OnFocusPoll() {
-    if (g_isTyping && g_run && GetForegroundWindow() != g_run->targetWindow) {
-        Cancel();
-        overlay::ShowToast(ghost_logic::kToastFocusChanged);
+    if (g_isTyping && g_run) {
+        HWND cur = GetForegroundWindow();
+        bool focusOk = (cur == g_run->targetWindow ||
+                        (cur && g_run->targetWindow && (GetAncestor(cur, GA_ROOT) == GetAncestor(g_run->targetWindow, GA_ROOT) || IsChild(g_run->targetWindow, cur))));
+        if (!focusOk) {
+            Cancel();
+            overlay::ShowToast(ghost_logic::kToastFocusChanged);
+        }
     }
 }
 
@@ -220,6 +229,7 @@ ghost_logic::Timing GetTiming() {
             g_timing.human = (ini_writer::GetIniInt(content, "GhostTiming", "human", 1) != 0);
             g_timing.speed = ini_writer::GetIniInt(content, "GhostTiming", "speed", 0);
             g_timing.safe = (ini_writer::GetIniInt(content, "GhostTiming", "safe", 0) != 0);
+            g_timing.engine = static_cast<ghost_logic::InsertionEngine>(ini_writer::GetIniInt(content, "GhostTiming", "engine", 0));
         }
         g_timing = ghost_logic::ValidateTiming(g_timing);
         g_timingLoaded = true;
@@ -244,6 +254,7 @@ void SetTiming(ghost_logic::Timing t) {
     ini_writer::SetIniInt(content, "GhostTiming", "human", g_timing.human ? 1 : 0);
     ini_writer::SetIniInt(content, "GhostTiming", "speed", g_timing.speed);
     ini_writer::SetIniInt(content, "GhostTiming", "safe", g_timing.safe ? 1 : 0);
+    ini_writer::SetIniInt(content, "GhostTiming", "engine", static_cast<int>(g_timing.engine));
 
     const auto temporary = path + L".tmp";
     std::ofstream out(temporary.c_str(), std::ios::binary | std::ios::trunc);
@@ -262,11 +273,12 @@ void SetTiming(ghost_logic::Timing t) {
 
 void OnGhostText(const std::string& text) { app::SetTestEntryText(text, false); }
 
-void OnGhostSettings(bool human, int speed, bool safe) {
+void OnGhostSettings(bool human, int speed, bool safe, int engine) {
     ghost_logic::Timing t;
     t.human = human;
     t.speed = speed;
     t.safe = safe;
+    t.engine = static_cast<ghost_logic::InsertionEngine>(engine);
     SetTiming(t);
 }
 
@@ -367,6 +379,7 @@ void FinishTyping() {
 
     size_t typed = g_run ? g_run->typist->TypedChars() : 0;
     std::string appName = g_run ? g_run->appName : "app";
+    HWND targetHwnd = g_run ? g_run->targetWindow : nullptr;
 
     if (g_run) {
         ReleaseHeldKey();
@@ -392,7 +405,7 @@ void FinishTyping() {
     overlay::ShowToast(toastBuf);
 
     UpdateGhostUi(ghost_logic::FormatStatus(typed, typed), "", "Start", "done");
-    Log("GHOST", "Finished typing %zu characters.", typed);
+    Log("GHOST", "SendInput dispatch complete: %zu characters queued for target HWND %p (%s); target consumption unverified.", typed, targetHwnd, appName.c_str());
 }
 
 void StepTyping() {
@@ -405,9 +418,11 @@ void StepTyping() {
         return;
     }
 
-    // Verify foreground focus has not changed
+    // Verify foreground focus has not changed (with child/root window tolerance)
     HWND currentFocus = GetForegroundWindow();
-    if (currentFocus != g_run->targetWindow) {
+    bool focusOk = (currentFocus == g_run->targetWindow ||
+                    (currentFocus && g_run->targetWindow && (GetAncestor(currentFocus, GA_ROOT) == GetAncestor(g_run->targetWindow, GA_ROOT) || IsChild(g_run->targetWindow, currentFocus))));
+    if (!focusOk) {
         Cancel();
         overlay::ShowToast(ghost_logic::kToastFocusChanged);
         return;
@@ -570,6 +585,11 @@ void OnSettleTick() {
 }
 
 void Run() {
+    auto timing = GetTiming();
+    if (timing.engine == ghost_logic::InsertionEngine::GodPaste) {
+        god_copy::Paste();
+        return;
+    }
     if (god_copy::IsBusy()) {
         overlay::ShowToast("Wait for god-copy to finish before starting Ghost Writer");
         return;
@@ -627,11 +647,12 @@ void Run() {
     HWND overlayHwnd = overlay::Hwnd();
     if (!target || target == overlayHwnd || IsChild(overlayHwnd, target) || target == GetDesktopWindow() ||
         target == GetShellWindow() || !IsWindowVisible(target)) {
-        Log("GHOST", "No valid external focus window found.");
+        LogErr("GHOST", "Target invalid: Foreground HWND %p is overlay, desktop, or invisible.", target);
         overlay::ShowToast(ghost_logic::kToastNoFocusedApp);
         UpdateGhostUi("Ready", "", "Start", "failed");
         return;
     }
+    Log("GHOST", "Target verified: HWND %p (%s). Starting keystroke dispatch.", target, GetProcessBaseName(target).c_str());
 
     DWORD pid = 0;
     GetWindowThreadProcessId(target, &pid);
