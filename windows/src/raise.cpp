@@ -98,6 +98,17 @@ HWND FindCoveringWindow(HWND self) {
         // Click-through layered windows are decorative HUDs (game overlays etc.); fighting them gains nothing.
         if ((ex & WS_EX_TRANSPARENT) && (ex & WS_EX_LAYERED)) continue;
 
+        // Skip Windows 11 Taskbar and XAML host windows so they don't cause restack fight or hide our overlay
+        wchar_t clsName[128] = L"";
+        if (GetClassNameW(w, clsName, 128)) {
+            if (wcscmp(clsName, L"Shell_TrayWnd") == 0 ||
+                wcscmp(clsName, L"Shell_SecondaryTrayWnd") == 0 ||
+                wcscmp(clsName, L"XamlExplorerHostIslandWindow") == 0 ||
+                wcscmp(clsName, L"Windows.UI.Core.CoreWindow") == 0) {
+                continue;
+            }
+        }
+
         DWORD cloaked = 0;  // hidden UWP / virtual-desktop windows report visible but are cloaked
         if (SUCCEEDED(DwmGetWindowAttribute(w, DWMWA_CLOAKED, &cloaked, sizeof(cloaked))) && cloaked) continue;
 
