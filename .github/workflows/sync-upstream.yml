@@ -1,0 +1,45 @@
+name: Sync Upstream Changes from Original Author
+
+on:
+  schedule:
+    # Runs automatically every 6 hours (00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab anytime
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Sync with savenXD/Linux-Handy-overlay
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Target Repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git Author
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add Upstream and Fetch
+        run: |
+          git remote add upstream https://github.com/savenXD/Linux-Handy-overlay.git
+          git fetch upstream main
+
+      - name: Merge Upstream Changes
+        run: |
+          # Merge upstream changes preserving our local feature modifications
+          git merge upstream/main -m "chore(sync): automated merge from upstream savenXD/Linux-Handy-overlay" --no-edit || {
+            echo "Merge conflicts detected. Resolving using current branch strategy..."
+            git merge --abort
+            git merge -X ours upstream/main -m "chore(sync): automated merge with conflict preference to local customizations" --no-edit
+          }
+
+      - name: Push Synced Commits to main
+        run: |
+          git push origin main
