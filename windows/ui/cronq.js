@@ -64,7 +64,7 @@
       // No `title` tooltips anywhere: they are native windows that screen-capture exclusion cannot hide.
       $('appearance').setAttribute('aria-label', `Appearance: ${name}. Alt+C toggles camouflage; Alt+T switches Light/Dark`);
     }
-    for (const app of ['home','browser','chatgpt','claude','gemini','ghost']) $(app).hidden = app !== state.app;
+    for (const app of ['home','browser','chatgpt','claude','gemini','localai','ghost']) $(app).hidden = app !== state.app;
     $('mode').className = `nav-pill ${state.mode === 'exclusive' ? 'pill-excl' : 'pill-mirror'}`;
     $('mode').setAttribute('aria-label', state.mode === 'exclusive' ? 'Exclusive' : 'Mirror');
     $('ghost-pill').className = `nav-pill ${state.ghost ? 'pill-ghost' : 'pill-solid'}`;
@@ -200,5 +200,92 @@
   $('start').addEventListener('click', () => { clearTimeout(ghostTextTimer); post('ghost-text',{value:$('editor').value}); post('ghost-start'); });
   new ResizeObserver(slot).observe($('viewport'));
   window.addEventListener('resize', slot);
+  
+  // Local AI Chat Logic
+  const localMessages = $('local-messages');
+  const localInput = $('local-input');
+  const localSend = $('local-send');
+  let localChatHistory = [];
+  let isLocalGenerating = false;
+
+  function appendLocalMessage(role, text) {
+    if (!localMessages) return null;
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `local-msg local-msg-${role}`;
+    msgDiv.textContent = text;
+    localMessages.appendChild(msgDiv);
+    localMessages.scrollTop = localMessages.scrollHeight;
+    return msgDiv;
+  }
+
+  async function sendLocalChat() {
+    if (!localInput || isLocalGenerating) return;
+    const text = localInput.value.trim();
+    if (!text) return;
+    localInput.value = '';
+    appendLocalMessage('user', text);
+    localChatHistory.push({role: 'user', content: text});
+    
+    isLocalGenerating = true;
+    localSend.disabled = true;
+    const assistantDiv = appendLocalMessage('assistant', 'Thinking...');
+    let fullResponse = '';
+
+    try {
+      // Connect to local Ollama / OpenAI-compatible endpoint
+      const response = await fetch('http://127.0.0.1:11434/api/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          model: 'llama3.2:3b',
+          messages: localChatHistory,
+          stream: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Local AI offline or model not loaded. (Status ' + response.status + ')');
+      }
+
+      assistantDiv.textContent = '';
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, {stream: true});
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.message && parsed.message.content) {
+              fullResponse += parsed.message.content;
+              assistantDiv.textContent = fullResponse;
+              localMessages.scrollTop = localMessages.scrollHeight;
+            }
+          } catch(e) {}
+        }
+      }
+      localChatHistory.push({role: 'assistant', content: fullResponse});
+    } catch (err) {
+      assistantDiv.textContent = 'Offline AI ready: ' + err.message;
+      assistantDiv.classList.add('local-msg-error');
+    } finally {
+      isLocalGenerating = false;
+      localSend.disabled = false;
+      localInput.focus();
+    }
+  }
+
+  if (localSend) localSend.addEventListener('click', sendLocalChat);
+  if (localInput) localInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendLocalChat();
+    }
+  });
+
   post('ready');
 })();

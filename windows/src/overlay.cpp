@@ -1142,6 +1142,9 @@ void SwitchApp(const std::string& name) {
     } else if (EqNoCase(name, "gemini")) {
         g_app = "gemini";
         SetCompactMode(false);
+    } else if (EqNoCase(name, "localai")) {
+        g_app = "localai";
+        SetCompactMode(false);
     } else if (EqNoCase(name, "browser")) {
         g_app = "browser";
         SetCompactMode(false);
