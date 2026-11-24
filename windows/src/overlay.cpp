@@ -592,31 +592,7 @@ void OnLButtonUp(int x, int y) {
 }
 
 bool OnSetCursor() {
-    POINT p;
-    GetCursorPos(&p);
-    ScreenToClient(g_hwnd, &p);
-    int edges = 0;
-    int hit = (g_drag == DragMove) ? HitHandle : HitTest(p.x, p.y, &edges);
-    if (g_drag == DragResize) edges = g_dragEdges, hit = HitEdge;
-
-    LPCWSTR cur = IDC_ARROW;
-    if (hit == HitHandle) {
-        cur = IDC_SIZEALL;
-    } else if (hit == HitHide || hit == HitFull || hit == HitClose || hit == HitPillMode ||
-               hit == HitPillGhost) {
-        cur = IDC_HAND;
-    } else if (hit == HitGrip || hit == HitEdge) {
-        bool l = edges & kEdgeL, r = edges & kEdgeR, t = edges & kEdgeT, b = edges & kEdgeB;
-        if ((l && t) || (r && b))
-            cur = IDC_SIZENWSE;
-        else if ((r && t) || (l && b))
-            cur = IDC_SIZENESW;
-        else if (l || r)
-            cur = IDC_SIZEWE;
-        else if (t || b)
-            cur = IDC_SIZENS;
-    }
-    SetCursor(LoadCursorW(nullptr, cur));
+    SetCursor(LoadCursorW(nullptr, IDC_ARROW));
     return true;
 }
 

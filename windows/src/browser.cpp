@@ -431,6 +431,12 @@ LRESULT CALLBACK ViewHostProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
         HBRUSH brush=CreateSolidBrush(RGB(bg.r,bg.g,bg.b));
         FillRect(reinterpret_cast<HDC>(wp),&r,brush);DeleteObject(brush);return 1;
     }
+    if (msg==WM_SETCURSOR) {
+        if (LOWORD(lp)==HTCLIENT) {
+            SetCursor(LoadCursorW(nullptr, IDC_ARROW));
+            return TRUE;
+        }
+    }
     return DefWindowProcW(hwnd,msg,wp,lp);
 }
 void CreateView(int i) {
