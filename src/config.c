@@ -27,7 +27,7 @@ static void set_defaults(AppConfig *cfg) {
               "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
               sizeof(cfg->user_agent));
     g_strlcpy(cfg->chatgpt_allowlist,
-              "chatgpt.com,openai.com,oaistatic.com,oaiusercontent.com,auth0.com,google.com,google.co.in,gstatic.com,googleusercontent.com,googleapis.com,recaptcha.net,cloudflare.com,challenges.cloudflare.com,microsoft.com,microsoftonline.com,live.com,msftauth.net,apple.com,claude.ai,anthropic.com",
+              "chatgpt.com,openai.com,oaistatic.com,oaiusercontent.com,auth0.com,google.com,google.co.in,gstatic.com,googleusercontent.com,googleapis.com,recaptcha.net,cloudflare.com,challenges.cloudflare.com,microsoft.com,microsoftonline.com,live.com,msftauth.net,apple.com,claude.ai,anthropic.com,gemini.google.com",
               sizeof(cfg->chatgpt_allowlist));
 
     cfg->toggle_key = 'x';

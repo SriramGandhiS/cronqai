@@ -27,7 +27,7 @@ struct AppConfig {
         "chatgpt.com,openai.com,oaistatic.com,oaiusercontent.com,auth0.com,google.com,google.co.in,"
         "gstatic.com,googleusercontent.com,googleapis.com,recaptcha.net,cloudflare.com,"
         "challenges.cloudflare.com,microsoft.com,microsoftonline.com,live.com,msftauth.net,apple.com,"
-        "claude.ai,anthropic.com";
+        "claude.ai,anthropic.com,gemini.google.com";
 
     char toggleKey = 'x';
     char modeKey = 'm';

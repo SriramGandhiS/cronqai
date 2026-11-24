@@ -115,8 +115,9 @@ button, input, textarea { outline: none; }
 .home-page { display: flex; flex-direction: column; padding-top: 8px; }
 .home-search-bar { margin: 0 20px 12px; display: flex; align-items: center; gap: 10px; text-align: left; }
 .home-section-title { margin: 0 0 6px 24px; }
-.apps { display: grid; grid-template-columns: repeat(4, 1fr); align-self: center; justify-items: center; width: 100%; max-width: 320px; padding: 0 8px; box-sizing: border-box; }
-.app-button { display: flex; flex-direction: column; align-items: center; }
+.apps { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; align-self: stretch; align-items: flex-start; gap: 12px; padding: 0 16px 8px; box-sizing: border-box; scroll-snap-type: x mandatory; scrollbar-width: none; -ms-overflow-style: none; }
+.apps::-webkit-scrollbar { display: none; }
+.app-button { flex: 0 0 58px; display: flex; flex-direction: column; align-items: center; scroll-snap-align: start; }
 .app-button svg { width: 44px; height: 44px; }
 .web-page { display: flex; flex-direction: column; }
 .header-box { flex-shrink: 0; margin: 0; }

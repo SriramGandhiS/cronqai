@@ -1139,6 +1139,9 @@ void SwitchApp(const std::string& name) {
     } else if (EqNoCase(name, "claude")) {
         g_app = "claude";
         SetCompactMode(false);
+    } else if (EqNoCase(name, "gemini")) {
+        g_app = "gemini";
+        SetCompactMode(false);
     } else if (EqNoCase(name, "browser")) {
         g_app = "browser";
         SetCompactMode(false);
@@ -1172,7 +1175,7 @@ void BeginExternalDrag(bool move, int edges) {
 }
 void ToggleHeight() { ToggleMaximizedHeight(); }
 void Back() {
-    if ((g_app == "browser" || g_app == "chatgpt" || g_app == "claude") && browser::CanGoBack())
+    if ((g_app == "browser" || g_app == "chatgpt" || g_app == "claude" || g_app == "gemini") && browser::CanGoBack())
         browser::GoBack();
     else
         SwitchApp("home");
