@@ -1,3 +1,7 @@
+#include <windows.h>
+#include <winhttp.h>
+#include <thread>
+#pragma comment(lib, "winhttp.lib")
 #include "ui_bridge.h"
 
 #include <deque>
@@ -97,7 +101,81 @@ void OnMessage(const std::string& text) {
         if (!Number(m, "x", &x) || !Number(m, "y", &y) || !Number(m, "w", &w) || !Number(m, "h", &h)) return;
         RECT r = {x, y, x + w, y + h};
         browser::ResizeContent(r);
-    } else if (type == "nav") {
+        } else if (type == "localai-query") {
+        auto it = m.find("prompt");
+        if (it != m.end()) {
+            std::string prompt = it->second;
+            std::thread([prompt]() {
+                HINTERNET hSession = WinHttpOpen(L"CronqLocalAI/1.0", WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+                if (!hSession) return;
+                HINTERNET hConnect = WinHttpConnect(hSession, L"127.0.0.1", 9931, 0);
+                if (!hConnect) { WinHttpCloseHandle(hSession); return; }
+                HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"POST", L"/v1/chat/completions", nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
+                if (!hRequest) { WinHttpCloseHandle(hConnect); WinHttpCloseHandle(hSession); return; }
+
+                // Escape prompt for JSON
+                std::string escaped;
+                for (char c : prompt) {
+                    if (c == '"') escaped += "\\\"";
+                    else if (c == '\\') escaped += "\\\\";
+                    else if (c == '\n') escaped += "\\n";
+                    else if (c == '\r') escaped += "\\r";
+                    else if (c == '\t') escaped += "\\t";
+                    else escaped += c;
+                }
+                std::string body = "{\"messages\":[{\"role\":\"user\",\"content\":\"" + escaped + "\"}]}";
+                LPCWSTR headers = L"Content-Type: application/json\r\n";
+                BOOL bResults = WinHttpSendRequest(hRequest, headers, (DWORD)-1, (LPVOID)body.c_str(), (DWORD)body.length(), (DWORD)body.length(), 0);
+                if (bResults) bResults = WinHttpReceiveResponse(hRequest, nullptr);
+
+                std::string responseText;
+                if (bResults) {
+                    DWORD dwSize = 0;
+                    do {
+                        DWORD dwDownloaded = 0;
+                        if (!WinHttpQueryDataAvailable(hRequest, &dwSize)) break;
+                        if (dwSize == 0) break;
+                        std::vector<char> buf(dwSize + 1);
+                        if (!WinHttpReadData(hRequest, buf.data(), dwSize, &dwDownloaded)) break;
+                        buf[dwDownloaded] = 0;
+                        responseText.append(buf.data(), dwDownloaded);
+                    } while (dwSize > 0);
+                }
+                WinHttpCloseHandle(hRequest);
+                WinHttpCloseHandle(hConnect);
+                WinHttpCloseHandle(hSession);
+
+                // Parse content from OpenAI json format: "content":"..."
+                std::string content = "Offline AI error: no response";
+                size_t cpos = responseText.find("\"content\":\"");
+                if (cpos != std::string::npos) {
+                    cpos += 11;
+                    size_t endpos = cpos;
+                    while (endpos < responseText.length()) {
+                        if (responseText[endpos] == '"' && responseText[endpos - 1] != '\\') break;
+                        endpos++;
+                    }
+                    content = responseText.substr(cpos, endpos - cpos);
+                } else if (!responseText.empty()) {
+                    content = responseText;
+                }
+
+                // Post reply back to WebView2 UI
+                // Escape for sending in jsonlite
+                std::string safeContent;
+                for (char c : content) {
+                    if (c == '"') safeContent += "\\\"";
+                    else if (c == '\\') safeContent += "\\\\";
+                    else if (c == '\n') safeContent += "\\n";
+                    else if (c == '\r') safeContent += "\\r";
+                    else if (c == '\t') safeContent += "\\t";
+                    else safeContent += c;
+                }
+                std::string msg = "{\"type\":\"localai-reply\",\"text\":\"" + safeContent + "\"}";
+                ui::PostToUi(msg);
+            }).detach();
+        }
+} else if (type == "nav") {
         const auto& app = m["app"];
         if (app == "home" || app == "browser" || app == "chatgpt" || app == "claude" || app == "gemini" || app == "localai" || app == "ghost") overlay::SwitchApp(app);
     } else if (type == "back")

@@ -96,6 +96,7 @@
     else if (m.type === 'toast') toast(m.text);
     else if (m.type === 'reset-editor') { $('editor').value = ''; $('url').value = ''; updateEditor(); }
     else if (m.type === 'snap-state') setSnapState(m.state);
+    else if (m.type === 'localai-reply') handleLocalAiReply(m.text);
     else if (m.type === 'ghost-status') {
       $('ghost-status').textContent = m.text || 'Ready';
       if (m.eta) {
@@ -218,73 +219,31 @@
     return msgDiv;
   }
 
-  async function sendLocalChat() {
+  let currentAssistantMsgDiv = null;
+
+  function sendLocalChat() {
     if (!localInput || isLocalGenerating) return;
-    const text = localInput.value.trim();
-    if (!text) return;
+    const query = localInput.value.trim();
+    if (!query) return;
     localInput.value = '';
-    appendLocalMessage('user', text);
-    localChatHistory.push({role: 'user', content: text});
+    appendLocalMessage('user', query);
     
     isLocalGenerating = true;
     localSend.disabled = true;
-    const assistantDiv = appendLocalMessage('assistant', 'Thinking...');
-    let fullResponse = '';
+    currentAssistantMsgDiv = appendLocalMessage('assistant', 'Thinking...');
+    post('localai-query', {prompt: query});
+  }
 
-    try {
-      // Connect to local llama-server (OpenAI-compatible SSE streaming endpoint)
-      const response = await fetch('http://127.0.0.1:9931/v1/chat/completions', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          messages: localChatHistory,
-          stream: true,
-          max_tokens: 512,
-          temperature: 0.7
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Local server offline (Status ' + response.status + '). Ensure offline server is running.');
-      }
-
-      assistantDiv.textContent = '';
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const {done, value} = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, {stream: true});
-        const lines = buffer.split('\n');
-        buffer = lines.pop(); // keep partial line
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith('data: ')) continue;
-          const jsonStr = trimmed.slice(6);
-          if (jsonStr === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) {
-              fullResponse += delta;
-              assistantDiv.textContent = fullResponse;
-              localMessages.scrollTop = localMessages.scrollHeight;
-            }
-          } catch(e) {}
-        }
-      }
-      localChatHistory.push({role: 'assistant', content: fullResponse});
-    } catch (err) {
-      assistantDiv.textContent = 'Offline AI ready: ' + err.message;
-      assistantDiv.classList.add('local-msg-error');
-    } finally {
-      isLocalGenerating = false;
-      localSend.disabled = false;
-      localInput.focus();
+  function handleLocalAiReply(msgText) {
+    if (currentAssistantMsgDiv) {
+      // unescape newlines
+      const clean = msgText.replace(/\\n/g, '\n').replace(/\\r/g, '').replace(/\\"/g, '"');
+      currentAssistantMsgDiv.textContent = clean;
+      localMessages.scrollTop = localMessages.scrollHeight;
     }
+    isLocalGenerating = false;
+    if (localSend) localSend.disabled = false;
+    if (localInput) localInput.focus();
   }
 
   if (localSend) localSend.addEventListener('click', sendLocalChat);
