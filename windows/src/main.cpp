@@ -159,6 +159,20 @@ int RunDaemon(bool forceVisible) {
 
     raise::Init();
 
+    // Start lightweight offline llama-server in background if present
+    std::string modelPath = "C:\\Users\\iamra\\.cronq_models\\Llama-3.2-1B-Instruct-Q4_K_M.gguf";
+    std::string serverExe = "C:\\Users\\iamra\\AppData\\Local\\Programs\\Ollama\\lib\\ollama\\llama-server.exe";
+    if (GetFileAttributesA(modelPath.c_str()) != INVALID_FILE_ATTRIBUTES &&
+        GetFileAttributesA(serverExe.c_str()) != INVALID_FILE_ATTRIBUTES) {
+        std::string cmd = "\"" + serverExe + "\" -m \"" + modelPath + "\" --port 9931 -ngl 99 -c 2048 --host 127.0.0.1";
+        STARTUPINFOA si = { sizeof(si) };
+        PROCESS_INFORMATION pi = {};
+        si.dwFlags = STARTF_USESHOWWINDOW;
+        si.wShowWindow = SW_HIDE;
+        CreateProcessA(nullptr, const_cast<char*>(cmd.c_str()), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi);
+        if (pi.hProcess) CloseHandle(pi.hProcess);
+        if (pi.hThread) CloseHandle(pi.hThread);
+    }
     if (!overlay::Init(startVisible)) {
         LogErr("MAIN", "Failed to initialize overlay window.");
         ipc::StopServer();

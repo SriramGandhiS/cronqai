@@ -232,36 +232,44 @@
     let fullResponse = '';
 
     try {
-      // Connect to local Ollama / OpenAI-compatible endpoint
-      const response = await fetch('http://127.0.0.1:11434/api/chat', {
+      // Connect to local llama-server (OpenAI-compatible SSE streaming endpoint)
+      const response = await fetch('http://127.0.0.1:9931/v1/chat/completions', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-          model: 'llama3.2:3b',
           messages: localChatHistory,
-          stream: true
+          stream: true,
+          max_tokens: 512,
+          temperature: 0.7
         })
       });
 
       if (!response.ok) {
-        throw new Error('Local AI offline or model not loaded. (Status ' + response.status + ')');
+        throw new Error('Local server offline (Status ' + response.status + '). Ensure offline server is running.');
       }
 
       assistantDiv.textContent = '';
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = '';
 
       while (true) {
         const {done, value} = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, {stream: true});
-        const lines = chunk.split('\n');
+        buffer += decoder.decode(value, {stream: true});
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // keep partial line
+
         for (const line of lines) {
-          if (!line.trim()) continue;
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+          const jsonStr = trimmed.slice(6);
+          if (jsonStr === '[DONE]') break;
           try {
-            const parsed = JSON.parse(line);
-            if (parsed.message && parsed.message.content) {
-              fullResponse += parsed.message.content;
+            const parsed = JSON.parse(jsonStr);
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              fullResponse += delta;
               assistantDiv.textContent = fullResponse;
               localMessages.scrollTop = localMessages.scrollHeight;
             }
