@@ -641,6 +641,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_CRONQ_SNAP_DONE:
             snap::OnEncoded(reinterpret_cast<void*>(lp));
             return 0;
+        case WM_CRONQ_LOCALAI_DONE: {
+            std::string* pMsg = reinterpret_cast<std::string*>(lp);
+            if (pMsg) {
+                ui::PostToUi(*pMsg);
+                delete pMsg;
+            }
+            return 0;
+        }
         case WM_CRONQ_BROWSER_RECOVER:
             browser::Recover(static_cast<unsigned>(wp), static_cast<unsigned>(lp));
             return 0;

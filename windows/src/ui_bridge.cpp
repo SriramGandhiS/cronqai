@@ -171,8 +171,12 @@ void OnMessage(const std::string& text) {
                     else if (c == '\t') safeContent += "\\t";
                     else safeContent += c;
                 }
-                std::string msg = "{\"type\":\"localai-reply\",\"text\":\"" + safeContent + "\"}";
-                ui::PostToUi(msg);
+                std::string* pMsg = new std::string("{\"type\":\"localai-reply\",\"text\":\"" + safeContent + "\"}");
+                if (overlay::Hwnd()) {
+                    PostMessageW(overlay::Hwnd(), WM_CRONQ_LOCALAI_DONE, 0, reinterpret_cast<LPARAM>(pMsg));
+                } else {
+                    delete pMsg;
+                }
             }).detach();
         }
 } else if (type == "nav") {
