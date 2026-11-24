@@ -99,7 +99,7 @@ void OnMessage(const std::string& text) {
         browser::ResizeContent(r);
     } else if (type == "nav") {
         const auto& app = m["app"];
-        if (app == "home" || app == "browser" || app == "chatgpt" || app == "ghost") overlay::SwitchApp(app);
+        if (app == "home" || app == "browser" || app == "chatgpt" || app == "claude" || app == "ghost") overlay::SwitchApp(app);
     } else if (type == "back")
         overlay::Back();
     else if (type == "reset")

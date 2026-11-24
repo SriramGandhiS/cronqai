@@ -64,7 +64,7 @@
       // No `title` tooltips anywhere: they are native windows that screen-capture exclusion cannot hide.
       $('appearance').setAttribute('aria-label', `Appearance: ${name}. Alt+C toggles camouflage; Alt+T switches Light/Dark`);
     }
-    for (const app of ['home','browser','chatgpt','ghost']) $(app).hidden = app !== state.app;
+    for (const app of ['home','browser','chatgpt','claude','ghost']) $(app).hidden = app !== state.app;
     $('mode').className = `nav-pill ${state.mode === 'exclusive' ? 'pill-excl' : 'pill-mirror'}`;
     $('mode').setAttribute('aria-label', state.mode === 'exclusive' ? 'Exclusive' : 'Mirror');
     $('ghost-pill').className = `nav-pill ${state.ghost ? 'pill-ghost' : 'pill-solid'}`;

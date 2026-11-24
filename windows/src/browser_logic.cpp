@@ -77,7 +77,7 @@ bool IsDomainAllowedForChatGpt(const std::string& uri, const std::string& csv) {
         return true;
     for (auto p : {".google.com", "gstatic.com", "googleusercontent.com", "googleapis.com", "recaptcha.net",
                    "cloudflare.com", "openai.com", "oaistatic.com", "oaiusercontent.com", "auth0.com", "microsoft.com",
-                   "microsoftonline.com", "live.com", "msftauth.net", "apple.com"})
+                   "microsoftonline.com", "live.com", "msftauth.net", "apple.com", "claude.ai", "anthropic.com"})
         if (Ends(host, p))
             return true;
     // Keep Linux's permissive, case-sensitive substring rule too.

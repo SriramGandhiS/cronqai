@@ -306,7 +306,7 @@ int Help(const char* prog) {
     printf("  --snap-wgc-window             Foreground-window WGC test (Alt+Shift+O)\n");
     printf("  --mode [m|e]                  Set or cycle typing mode (mirror / exclusive)\n");
     printf("  --ghost [on|off]              Set or toggle GHOST click-through mode\n");
-    printf("  --app <name>                  Switch app view (home, chatgpt, browser)\n");
+    printf("  --app <name>                  Switch app view (home, chatgpt, claude, browser)\n");
     printf("  --load <url>                  Load URL in browser\n");
     printf("  --back                        Navigate back in current app (or home if at start)\n");
     printf("  --home                        Return to two-app home screen\n");
@@ -421,7 +421,7 @@ int RunCli(const std::vector<std::string>& args) {
             return Remote("LOAD " + url, okMsg.c_str());
         } else if (is("--app")) {
             if (i + 1 >= args.size()) {
-                fprintf(stderr, "Error: --app requires an app name (home, chatgpt, browser).\n");
+                fprintf(stderr, "Error: --app requires an app name (home, chatgpt, claude, browser).\n");
                 return 1;
             }
             const std::string& name = args[++i];

@@ -33,7 +33,7 @@ std::string g_failure;
 [[maybe_unused]] HWND g_parent = nullptr;
 std::string g_app = "home";
 #ifdef CRONQ_WEBVIEW2
-constexpr int kUi = 0, kBrowser = 1, kChat = 2, kPopup = 3;
+constexpr int kUi = 0, kBrowser = 1, kChat = 2, kClaude = 3, kPopup = 4;
 struct View {
     HWND host = nullptr;
     ComPtr<ICoreWebView2Controller> controller;
@@ -61,7 +61,7 @@ struct PendingPopup {
 };
 struct State {
     ComPtr<ICoreWebView2Environment> environment;
-    std::array<View, 4> views;
+    std::array<View, 5> views;
     std::shared_ptr<PendingPopup> popup;
     HMODULE loader = nullptr;
     RECT slot{};
@@ -107,9 +107,9 @@ void CloseView(int i) {
 }
 // ---- recovery pacing: a crash loop (bad GPU driver, broken runtime) must not spin the CPU.
 constexpr unsigned kRecoverNow = 0x100;  // wParam flag: a delayed recovery whose wait is over
-recovery_logic::Backoff g_recoverBackoff[5] = {  // views 0-3, 4 = whole environment
+recovery_logic::Backoff g_recoverBackoff[6] = {  // views 0-4, 5 = whole environment
     {0, 2000, 60000, 30000}, {0, 2000, 60000, 30000}, {0, 2000, 60000, 30000},
-    {0, 2000, 60000, 30000}, {0, 2000, 60000, 30000}};
+    {0, 2000, 60000, 30000}, {0, 2000, 60000, 30000}, {0, 2000, 60000, 30000}};
 std::map<UINT_PTR, std::pair<unsigned, unsigned>> g_delayedRecover;  // timer -> (index, generation)
 recovery_logic::Backoff g_initBackoff(5000, 10000, 120000, 600000);
 UINT_PTR g_retryTimer = 0;
@@ -304,6 +304,7 @@ bool ConfigureView(int i) {
             if (!g.contentStarted) {
                 g.contentStarted = true;
                 CreateView(kChat);  // preloaded so ChatGPT opens instantly
+                CreateView(kClaude);  // preloaded so Claude opens instantly
                 if (g.browserWanted) CreateView(kBrowser);
             }
         }
@@ -333,7 +334,7 @@ bool ConfigureView(int i) {
     ok &= BIND(i, PermissionRequested, ICoreWebView2PermissionRequestedEventArgs*, [i](auto* a) {
         COREWEBVIEW2_PERMISSION_KIND kind{};
         Check(a->get_PermissionKind(&kind), "permission get_PermissionKind");
-        const bool allow = i == kChat && kind == COREWEBVIEW2_PERMISSION_KIND_CLIPBOARD_READ;
+        const bool allow = (i == kChat || i == kClaude) && kind == COREWEBVIEW2_PERMISSION_KIND_CLIPBOARD_READ;
         Check(a->put_State(allow ? COREWEBVIEW2_PERMISSION_STATE_ALLOW : COREWEBVIEW2_PERMISSION_STATE_DENY),
               "permission put_State");
         if (!allow) {
@@ -354,12 +355,12 @@ bool ConfigureView(int i) {
         // Recover outside this COM callback. Reload cannot revive a dead browser
         // process, and closing controllers inside an event is reentrant.
         if (kind == COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED)
-            PostMessageW(g_parent, WM_CRONQ_BROWSER_RECOVER, 4, g.environmentGeneration);
+            PostMessageW(g_parent, WM_CRONQ_BROWSER_RECOVER, 5, g.environmentGeneration);
         else if (kind == COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED ||
                  kind == COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_UNRESPONSIVE)
             PostMessageW(g_parent, WM_CRONQ_BROWSER_RECOVER, i, g.views[i].generation);
     });
-    if (i == kBrowser || i == kChat)
+    if (i == kBrowser || i == kChat || i == kClaude)
         ok &= BIND(i, NewWindowRequested, ICoreWebView2NewWindowRequestedEventArgs*,
                    [i](auto* a) { PopupRequested(i, a); });
     if (i == kPopup) ok &= BIND(i, WindowCloseRequested, IUnknown*, [](auto*) { ClosePopup(); });
@@ -460,7 +461,7 @@ void CreateView(int i) {
             return S_OK;
         }
         view.controller = controller;
-        view.scriptReady = i != kChat;
+        view.scriptReady = (i != kChat && i != kClaude);
         if (!Check(controller->put_IsVisible(FALSE), "initial visibility") ||
             !Check(controller->get_CoreWebView2(view.core.ReleaseAndGetAddressOf()), "get_CoreWebView2") ||
             !ConfigureView(i)) {
@@ -516,7 +517,7 @@ void UpdateLayout() {
     if (g_shuttingDown) return;
     RECT client{};
     GetClientRect(g_parent, &client);
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 5; ++i) {
         auto& v = g.views[i];
         if (!v.controller) continue;
         bool visible = g.muted ? false
@@ -542,7 +543,7 @@ void UpdateLayout() {
 void RefreshAppearance() {
 #ifdef CRONQ_WEBVIEW2
     const auto& p=theme::Get();
-    for (int i=0; i<4; ++i) {
+    for (int i=0; i<5; ++i) {
         auto& v=g.views[i];
         if (!v.core || !v.controller) continue;
         ComPtr<ICoreWebView2Controller2> background;
@@ -666,6 +667,8 @@ void SetActiveApp(const std::string& name) {
     if (name == "browser") EnsureBrowserView();
     if (name == "chatgpt")
         g.activeIndex = kChat;
+    else if (name == "claude")
+        g.activeIndex = kClaude;
     else if (name != "ghost")
         g.activeIndex = kBrowser;
     g.slotValid = false;
@@ -683,6 +686,14 @@ void LoadInBrowser(const std::string& input) {
 void LoadInChatGpt(const std::string& input) {
 #ifdef CRONQ_WEBVIEW2
     Navigate(g.views[kChat], browser_logic::NormalizeInput(input, config::Get().searchUrlTemplate));
+#else
+    (void)input;
+#endif
+}
+
+void LoadInClaude(const std::string& input) {
+#ifdef CRONQ_WEBVIEW2
+    Navigate(g.views[kClaude], browser_logic::NormalizeInput(input, config::Get().searchUrlTemplate));
 #else
     (void)input;
 #endif
@@ -793,9 +804,9 @@ void Recover(unsigned index, unsigned generation) {
 #ifdef CRONQ_WEBVIEW2
     const bool waited = (index & kRecoverNow) != 0;
     index &= ~kRecoverNow;
-    if (g_shuttingDown || index > 4) return;
+    if (g_shuttingDown || index > 5) return;
     // Ignore stale notifications before they count towards the backoff.
-    if (index == 4 ? (!g.environment || g.environmentGeneration != generation)
+    if (index == 5 ? (!g.environment || g.environmentGeneration != generation)
                    : g.views[index].generation != generation)
         return;
     if (!waited) {
@@ -809,10 +820,10 @@ void Recover(unsigned index, unsigned generation) {
             }
         }
     }
-    if (index == 4) {
+    if (index == 5) {
         // Coalesce process-failure notifications from all views in this environment.
         if (!g.environment || g.environmentGeneration != generation) return;
-        for (int i : {kBrowser, kChat}) {
+        for (int i : {kBrowser, kChat, kClaude}) {
             auto& v = g.views[i];
             if (!v.uri.empty() && v.uri != "about:blank") v.pending = v.uri;
         }
@@ -821,7 +832,7 @@ void Recover(unsigned index, unsigned generation) {
         Init(parent);  // same user-data folder: retain cookies and sign-in
         return;
     }
-    if (index >= 4 || g.views[index].generation != generation) return;
+    if (index >= 5 || g.views[index].generation != generation) return;
     auto& v = g.views[index];
     if (index == kPopup) { ClosePopup(); return; }
     if (!v.uri.empty() && v.uri != "about:blank") v.pending = v.uri;
@@ -840,6 +851,7 @@ void UniversalReset() {
     g.views[kBrowser].pending.clear();
     g.browserWanted = false;
     LoadInChatGpt("https://chatgpt.com");
+    LoadInClaude("https://claude.ai");
 #endif
     // Reset's visible behavior is wired in overlay::UniversalReset (Linux parity).
 }
@@ -901,6 +913,7 @@ bool g_urlInputFocused = false;
 ICoreWebView2* GetCurrentKeyTarget() {
     if (HasPopup() && g.views[kPopup].core) return g.views[kPopup].core.Get();
     if (g_app == "chatgpt" && g.views[kChat].core) return g.views[kChat].core.Get();
+    if (g_app == "claude" && g.views[kClaude].core) return g.views[kClaude].core.Get();
     if (g_app == "browser") {
         if (g_urlInputFocused && g.views[kUi].core) return g.views[kUi].core.Get();
         if (g.views[kBrowser].core) return g.views[kBrowser].core.Get();

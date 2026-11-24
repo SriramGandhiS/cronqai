@@ -13,6 +13,7 @@ void SetActiveApp(const std::string&);
 void Load(const std::string&);
 void LoadInBrowser(const std::string&);
 void LoadInChatGpt(const std::string&);
+void LoadInClaude(const std::string&);
 void GoBack();
 void GoForward();
 void Reload();
