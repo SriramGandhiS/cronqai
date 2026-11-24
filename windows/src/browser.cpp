@@ -478,26 +478,27 @@ void CreateView(int i) {
                 pending->Complete();
             }
             g.popup.reset();
-        } else if (i == kChat) {
-            // Navigate only after script registration finishes, so the first document receives it.
+        } else if (i == kChat || i == kClaude) {
+            const int targetIdx = i;
+            const std::string defaultUrl = (targetIdx == kClaude) ? "https://claude.ai" : "https://chatgpt.com";
             auto scriptDone = MakeHandler<ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler,
-                                          HRESULT, LPCWSTR>([gen](HRESULT result, LPCWSTR) -> HRESULT {
-                if (!Live(kChat, gen)) return S_OK;
-                Check(result, "AddScript completed"); // optional Enter helper must not block the page
-                auto& chat = g.views[kChat];
-                chat.scriptReady = true;
-                std::string url = chat.pending.empty() ? "https://chatgpt.com" : chat.pending;
-                chat.pending.clear();
-                Navigate(chat, url);
+                                          HRESULT, LPCWSTR>([gen, targetIdx, defaultUrl](HRESULT result, LPCWSTR) -> HRESULT {
+                if (!Live(targetIdx, gen)) return S_OK;
+                Check(result, "AddScript completed");
+                auto& cv = g.views[targetIdx];
+                cv.scriptReady = true;
+                std::string url = cv.pending.empty() ? defaultUrl : cv.pending;
+                cv.pending.clear();
+                Navigate(cv, url);
                 return S_OK;
             });
-            hr = view.core->AddScriptToExecuteOnDocumentCreated(
-                Widen(browser_logic::ChatGptUserScript() + ";" + browser_logic::NoTooltipScript() + ";" +
-                      theme::WebScript()).c_str(),
-                scriptDone.Get());
+            std::string script = (targetIdx == kClaude)
+                ? (browser_logic::NoTooltipScript() + ";" + theme::WebScript())
+                : (browser_logic::ChatGptUserScript() + ";" + browser_logic::NoTooltipScript() + ";" + theme::WebScript());
+            hr = view.core->AddScriptToExecuteOnDocumentCreated(Widen(script).c_str(), scriptDone.Get());
             if (!Check(hr, "AddScriptToExecuteOnDocumentCreated")) {
                 view.scriptReady = true;
-                Navigate(view, view.pending.empty() ? "https://chatgpt.com" : view.pending);
+                Navigate(view, view.pending.empty() ? defaultUrl : view.pending);
             }
         } else {
             std::string url = i == kUi               ? "https://cronq.ui/index.html"
