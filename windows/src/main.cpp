@@ -1,3 +1,9 @@
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <winhttp.h>
+#pragma comment(lib, "winhttp.lib")
 // cronq for Windows.
 //   cronq.exe   console build: the command line tool (same commands as the Linux `cronq` script/binary)
 //   cronqw.exe  windowless build: the overlay itself (autostart, Start Menu, supervisor)
@@ -159,19 +165,49 @@ int RunDaemon(bool forceVisible) {
 
     raise::Init();
 
-    // Start lightweight offline llama-server in background if present
-    std::string modelPath = "C:\\Users\\iamra\\.cronq_models\\Llama-3.2-1B-Instruct-Q4_K_M.gguf";
-    std::string serverExe = "C:\\Users\\iamra\\AppData\\Local\\Programs\\Ollama\\lib\\ollama\\llama-server.exe";
+    // Ensure llama-server is running automatically in background
+    char userProf[MAX_PATH] = {};
+    GetEnvironmentVariableA("USERPROFILE", userProf, MAX_PATH);
+    std::string modelPath = std::string(userProf) + "\\.cronq_models\\Qwen2.5-3B-Instruct-Q4_K_M.gguf";
+    char localApp[MAX_PATH] = {};
+    GetEnvironmentVariableA("LOCALAPPDATA", localApp, MAX_PATH);
+    std::string serverExe = std::string(localApp) + "\\Programs\\Ollama\\lib\\ollama\\llama-server.exe";
+    std::string serverDir = std::string(localApp) + "\\Programs\\Ollama\\lib\\ollama";
+
     if (GetFileAttributesA(modelPath.c_str()) != INVALID_FILE_ATTRIBUTES &&
         GetFileAttributesA(serverExe.c_str()) != INVALID_FILE_ATTRIBUTES) {
-        std::string cmd = "\"" + serverExe + "\" -m \"" + modelPath + "\" --port 9931 -ngl 99 -c 2048 --host 127.0.0.1";
-        STARTUPINFOA si = { sizeof(si) };
-        PROCESS_INFORMATION pi = {};
-        si.dwFlags = STARTF_USESHOWWINDOW;
-        si.wShowWindow = SW_HIDE;
-        CreateProcessA(nullptr, const_cast<char*>(cmd.c_str()), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi);
-        if (pi.hProcess) CloseHandle(pi.hProcess);
-        if (pi.hThread) CloseHandle(pi.hThread);
+        // Only launch if port 9931 isn't already responding
+        bool alreadyRunning = false;
+        HINTERNET hTestSession = WinHttpOpen(L"CronqCheck/1.0", WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+        if (hTestSession) {
+            HINTERNET hTestConn = WinHttpConnect(hTestSession, L"127.0.0.1", 9931, 0);
+            if (hTestConn) {
+                HINTERNET hTestReq = WinHttpOpenRequest(hTestConn, L"GET", L"/v1/models", nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
+                if (hTestReq) {
+                    DWORD timeout = 250;
+                    WinHttpSetTimeouts(hTestReq, timeout, timeout, timeout, timeout);
+                    if (WinHttpSendRequest(hTestReq, WINHTTP_NO_ADDITIONAL_HEADERS, 0, nullptr, 0, 0, 0) &&
+                        WinHttpReceiveResponse(hTestReq, nullptr)) {
+                        alreadyRunning = true;
+                    }
+                    WinHttpCloseHandle(hTestReq);
+                }
+                WinHttpCloseHandle(hTestConn);
+            }
+            WinHttpCloseHandle(hTestSession);
+        }
+
+        if (!alreadyRunning) {
+            std::string cmd = "\"" + serverExe + "\" -m \"" + modelPath + "\" --port 9931 -ngl 99 -c 4096 --host 127.0.0.1";
+            STARTUPINFOA si = { sizeof(si) };
+            PROCESS_INFORMATION pi = {};
+            si.dwFlags = STARTF_USESHOWWINDOW;
+            si.wShowWindow = SW_HIDE;
+            if (CreateProcessA(nullptr, const_cast<char*>(cmd.c_str()), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, serverDir.c_str(), &si, &pi)) {
+                if (pi.hProcess) CloseHandle(pi.hProcess);
+                if (pi.hThread) CloseHandle(pi.hThread);
+            }
+        }
     }
     if (!overlay::Init(startVisible)) {
         LogErr("MAIN", "Failed to initialize overlay window.");

@@ -123,7 +123,8 @@ void OnMessage(const std::string& text) {
                     else if (c == '\t') escaped += "\\t";
                     else escaped += c;
                 }
-                std::string body = "{\"messages\":[{\"role\":\"user\",\"content\":\"" + escaped + "\"}]}";
+                std::string sysPrompt = "You are an intelligent, ultra-fast AI assistant. Give concise, razor-sharp, direct answers without unnecessary filler or preamble.";
+                std::string body = "{\"messages\":[{\"role\":\"system\",\"content\":\"" + sysPrompt + "\"},{\"role\":\"user\",\"content\":\"" + escaped + "\"}],\"max_tokens\":256,\"temperature\":0.6}";
                 LPCWSTR headers = L"Content-Type: application/json\r\n";
                 BOOL bResults = WinHttpSendRequest(hRequest, headers, (DWORD)-1, (LPVOID)body.c_str(), (DWORD)body.length(), (DWORD)body.length(), 0);
                 if (bResults) bResults = WinHttpReceiveResponse(hRequest, nullptr);
