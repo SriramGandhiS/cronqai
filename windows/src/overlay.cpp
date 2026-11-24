@@ -15,6 +15,8 @@
 #include "theme.h"
 
 #include <wtsapi32.h>
+#include <shobjidl.h>
+#include "com_support.h"
 #include <cstdio>
 #include <climits>
 #include <cstdlib>
@@ -27,6 +29,18 @@ namespace overlay {
 namespace {
 
 constexpr DWORD kAffinityExclude = 0x00000011;  // WDA_EXCLUDEFROMCAPTURE
+
+void EnsureTaskbarTabRemoved(HWND hwnd) {
+    if (!hwnd) return;
+    ComPtr<ITaskbarList> taskbarList;
+    HRESULT hr = CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_INPROC_SERVER,
+                                  IID_PPV_ARGS(taskbarList.ReleaseAndGetAddressOf()));
+    if (SUCCEEDED(hr) && taskbarList) {
+        if (SUCCEEDED(taskbarList->HrInit())) {
+            taskbarList->DeleteTab(hwnd);
+        }
+    }
+}
 
 const wchar_t* const kClassName = L"CronqOverlayWindow";
 constexpr UINT_PTR kToastTimerId = 1;
@@ -149,6 +163,7 @@ void UpdateRegion() {
 void ApplyGeometry() {
     if (!g_hwnd) return;
     SetWindowPos(g_hwnd, nullptr, g_x, g_y, g_w, g_h, SWP_NOACTIVATE | SWP_NOZORDER);
+    EnsureTaskbarTabRemoved(g_hwnd);
     hotkey::UpdateOverlayRect(g_x, g_y, g_x + g_w, g_y + g_h);
     browser::ResizeHost();
 }
@@ -169,7 +184,8 @@ void MoveTo(int x, int y) {
     g_y = y;
     if (g_hwnd) {
         SetWindowPos(g_hwnd, nullptr, g_x, g_y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER);
-        hotkey::UpdateOverlayRect(g_x, g_y, g_x + g_w, g_y + g_h);
+        EnsureTaskbarTabRemoved(g_hwnd);
+    hotkey::UpdateOverlayRect(g_x, g_y, g_x + g_w, g_y + g_h);
         browser::ResizeHost();
     }
 }
@@ -882,6 +898,7 @@ bool Init(bool startVisible) {
         g_refusedForCapture = true;
         return false;
     }
+    EnsureTaskbarTabRemoved(g_hwnd);
     hotkey::UpdateOverlayRect(g_x, g_y, g_x + g_w, g_y + g_h);
     Log("WINDOW", "Created overlay window HWND 0x%llx (%dx%d at %d,%d, dpi=%u)",
         (unsigned long long)(UINT_PTR)g_hwnd, g_w, g_h, g_x, g_y, g_dpi);
@@ -930,8 +947,10 @@ void Show() {
     if (!g_maximized && !g_userMoved) CalcPosition(&g_x, &g_y);
     else KeepOnScreen();
     SetWindowPos(g_hwnd, HWND_TOPMOST, g_x, g_y, g_w, g_h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    EnsureTaskbarTabRemoved(g_hwnd);
     g_visible = true;
     hotkey::SetOverlayVisible(true);
+    EnsureTaskbarTabRemoved(g_hwnd);
     hotkey::UpdateOverlayRect(g_x, g_y, g_x + g_w, g_y + g_h);
     browser::Resume();
     Log("WINDOW", "Overlay shown (topmost, no-activate at (%d, %d))", g_x, g_y);
