@@ -49,6 +49,15 @@ Cronq decouples the user interface from OS-level input capture and dispatching. 
 
 ## Core Capabilities
 
+### Multi-Model AI & Browser Workspace
+Instant switching between **ChatGPT**, **Claude**, **Gemini**, **Chrome/Web Browser**, and **Local AI** (offline llama-server bridge) from a 4-column grid.
+
+### Unified Standard Arrow Cursor
+Enforces a consistent Windows IDC_ARROW cursor across the overlay, UI controls, resize edges, and embedded WebView2 pages (no I-beam or hand-pointer transitions).
+
+### Screen-Share & Presentation Privacy
+Excluded from capture (WDA_EXCLUDEFROMCAPTURE), zero taskbar persistence (ITaskbarList::DeleteTab + WS_EX_TOOLWINDOW), and Ghost Mode (Alt + G) click-through propagation across WebView2 child hosts.
+
 ### Non-Activating Window Architecture
 Utilizing `WS_EX_NOACTIVATE`, `WS_EX_TOPMOST`, and specialized `WM_MOUSEACTIVATE` routing (`MA_NOACTIVATE`), Cronq permits complex user interaction—scrolling, clicking, reading responses, and configuring parameters—without ever stripping focus from the target IDE, code editor, or command terminal.
 
