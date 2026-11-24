@@ -97,10 +97,14 @@ bool IsDomainAllowedForChatGpt(const std::string& uri, const std::string& csv) {
 }
 std::string NoTooltipScript() {
     return R"JS((()=>{if(window.__cronqNoTips)return;window.__cronqNoTips=1;
-const injectStyle=()=>{if(document.getElementById('__cronq_unified_cursor'))return;
-const s=document.createElement('style');s.id='__cronq_unified_cursor';
-s.textContent='*, *::before, *::after, html, body, button, input, textarea, a, select, [contenteditable] { cursor: default !important; }';
-(document.head||document.documentElement).appendChild(s);};
+const injectStyle=()=>{
+  let s=document.getElementById('__cronq_unified_cursor');
+  if(!s){
+    s=document.createElement('style');s.id='__cronq_unified_cursor';
+    s.textContent='*, *::before, *::after, html, body, button, input, textarea, a, select, [contenteditable], [role="button"], [role="textbox"] { cursor: default !important; }';
+    (document.head||document.documentElement).appendChild(s);
+  }
+};
 injectStyle();
 const strip=n=>{if(!n||n.nodeType!==1)return;
 if(n.hasAttribute('title'))n.removeAttribute('title');
@@ -108,7 +112,7 @@ if(n.localName==='title'&&n.closest&&n.closest('svg')){n.remove();return;}
 if(n.querySelectorAll){for(const e of n.querySelectorAll('[title]'))e.removeAttribute('title');
 for(const t of n.querySelectorAll('svg title'))t.remove();}};
 const start=()=>{injectStyle();const root=document.documentElement;if(!root)return;strip(root);
-new MutationObserver(ms=>{for(const m of ms){if(m.type==='attributes')strip(m.target);else for(const a of m.addedNodes)strip(a);}})
+new MutationObserver(ms=>{injectStyle();for(const m of ms){if(m.type==='attributes')strip(m.target);else for(const a of m.addedNodes)strip(a);}})
 .observe(root,{subtree:true,childList:true,attributes:true,attributeFilter:['title']});};
 if(document.documentElement)start();else document.addEventListener('DOMContentLoaded',start,{once:true});})())JS";
 }

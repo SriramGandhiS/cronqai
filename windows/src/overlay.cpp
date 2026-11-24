@@ -1095,6 +1095,7 @@ void SetGhost(bool ghost) {
     SetWindowLongPtrW(g_hwnd, GWL_EXSTYLE, ex);
     SetWindowPos(g_hwnd, nullptr, 0, 0, 0, 0,
                  SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    browser::SetGhost(ghost);
     Log("WINDOW", ghost ? "Overlay is click-through (GHOST)." : "Overlay is SOLID.");
     QueueDraw();
 }

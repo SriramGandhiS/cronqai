@@ -39,5 +39,6 @@ void DispatchClipboardAction(WPARAM vk, LPARAM lParam);
 void PasteImageOrText();
 void SetUrlInputFocused(bool focused);
 void NotifyPointerClick();
+void SetGhost(bool ghost);
 }  // namespace browser
 }  // namespace cronq

@@ -71,6 +71,7 @@ struct State {
     bool browserWanted = false;
     int activeIndex = kBrowser;
     unsigned environmentGeneration = 0;
+    bool ghost = false;
 } g;
 
 bool Check(HRESULT hr, const char* operation) {
@@ -537,12 +538,16 @@ void UpdateLayout() {
         const RECT placement = i == kUi ? client : g.slot;
         const int width = placement.right - placement.left;
         const int height = placement.bottom - placement.top;
+        LONG_PTR ex = GetWindowLongPtrW(v.host, GWL_EXSTYLE);
+        if (g.ghost) ex |= WS_EX_TRANSPARENT;
+        else ex &= ~(LONG_PTR)WS_EX_TRANSPARENT;
+        SetWindowLongPtrW(v.host, GWL_EXSTYLE, ex);
         SetWindowPos(v.host, i == kUi ? HWND_BOTTOM : HWND_TOP,
                      placement.left, placement.top, width, height,
-                     SWP_NOACTIVATE | (visible ? SWP_SHOWWINDOW : SWP_HIDEWINDOW));
+                     SWP_NOACTIVATE | SWP_FRAMECHANGED | (visible ? SWP_SHOWWINDOW : SWP_HIDEWINDOW));
         RECT bounds{0, 0, width, height};
         Check(v.controller->put_Bounds(bounds), "put_Bounds");
-        Check(v.controller->put_IsVisible(visible ? TRUE : FALSE), "put_IsVisible");
+        Check(v.controller->put_IsVisible((visible && !g.ghost) ? TRUE : FALSE), "put_IsVisible");
     }
 }
 #endif
@@ -1191,6 +1196,14 @@ void PasteImageOrText() {
             target->CallDevToolsProtocolMethod(L"Input.dispatchKeyEvent", Widen(json).c_str(), handler.Get()),
             "clipboard dispatch");
     }
+#endif
+}
+void SetGhost(bool ghost) {
+#ifdef CRONQ_WEBVIEW2
+    g.ghost = ghost;
+    UpdateLayout();
+#else
+    (void)ghost;
 #endif
 }
 }  // namespace browser
