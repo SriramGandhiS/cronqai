@@ -30,7 +30,7 @@
 .home-search-bar:hover { border-color: #525252; }
 .home-search-label { font-size: 12px; color: #737373; }
 .home-section-title { font-size: 9px; font-weight: 600; color: #666666; letter-spacing: 1px; }
-.app-button { background: transparent; background-image: none; box-shadow: none; border: none; padding: 8px 6px; margin: 0; border-radius: 10px; }
+.app-button { background: transparent; background-image: none; box-shadow: none; border: none; padding: 4px 2px; margin: 0; border-radius: 10px; width: 100%; }
 .app-button:hover { background-color: #161616; }
 .app-button:active { background-color: #222222; }
 .app-label { font-size: 11px; font-weight: 400; color: #e5e5e5; margin-top: 5px; }
@@ -115,9 +115,9 @@ button, input, textarea { outline: none; }
 .home-page { display: flex; flex-direction: column; padding-top: 8px; }
 .home-search-bar { margin: 0 20px 12px; display: flex; align-items: center; gap: 10px; text-align: left; }
 .home-section-title { margin: 0 0 6px 24px; }
-.apps { display: flex; align-self: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.apps { display: grid; grid-template-columns: repeat(4, 1fr); align-self: center; justify-items: center; width: 100%; max-width: 320px; padding: 0 8px; box-sizing: border-box; }
 .app-button { display: flex; flex-direction: column; align-items: center; }
-.app-button svg { width: 50px; height: 50px; }
+.app-button svg { width: 44px; height: 44px; }
 .web-page { display: flex; flex-direction: column; }
 .header-box { flex-shrink: 0; margin: 0; }
 .url-bar-container { display: flex; align-items: center; }
@@ -196,7 +196,7 @@ svg [stroke="#a1a1aa"], svg[stroke="#a1a1aa"], svg[stroke="#71717a"],
 svg[stroke="#737373"], svg[stroke="#e4e4e7"] { stroke:var(--theme-muted); }
 #handle rect { fill:var(--theme-muted); }
 [data-app="chatgpt"] svg > rect, [data-app="claude"] svg > rect, [data-app="ghost"] svg > rect { fill:var(--theme-surface); stroke:var(--theme-border); }
-[data-app="chatgpt"] svg path { fill:var(--theme-text); }
+[data-app="chatgpt"] svg path, [data-app="claude"] svg path { fill:var(--theme-text); }
 [data-app="ghost"] svg g { stroke:var(--theme-text); }
 
 /* Camouflage is a content view. Alt+C always restores the normal controls. */

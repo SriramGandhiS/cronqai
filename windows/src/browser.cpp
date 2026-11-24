@@ -525,7 +525,7 @@ void UpdateLayout() {
                                 : (g.uiLoaded && g.slotValid &&
                                    (i == kPopup ? bool(v.core)
                                                 : !HasPopup() && ((i == kBrowser && g_app == "browser") ||
-                                                                  (i == kChat && g_app == "chatgpt"))));
+                                                                  (i == kChat && g_app == "chatgpt") || (i == kClaude && g_app == "claude"))));
         const RECT placement = i == kUi ? client : g.slot;
         const int width = placement.right - placement.left;
         const int height = placement.bottom - placement.top;
